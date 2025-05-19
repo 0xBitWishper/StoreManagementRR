@@ -3,7 +3,10 @@ import { testConnection } from "@/lib/db"
 
 export async function GET() {
   try {
+    console.log("Testing database connection")
     const result = await testConnection()
+
+    console.log("Database test result:", result.success ? "success" : "failed", result.message)
 
     if (result.success) {
       return NextResponse.json({ success: true, message: result.message })

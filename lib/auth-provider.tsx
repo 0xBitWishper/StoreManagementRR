@@ -4,7 +4,7 @@ import type React from "react"
 import { createContext, useContext, useEffect, useState } from "react"
 
 type User = {
-  id: string
+  id: string | number
   name: string
   email: string
   role: string
@@ -42,17 +42,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         // For demo purposes, we'll just decode the token
         // In a real app, you would verify the token with your backend
-        const userData = JSON.parse(atob(token.split(".")[1]))
+        try {
+          const userData = JSON.parse(atob(token.split(".")[1]))
 
-        if (userData && userData.exp * 1000 > Date.now()) {
-          setUser({
-            id: userData.id,
-            name: userData.name,
-            email: userData.email,
-            role: userData.role,
-          })
-        } else {
-          // Token expired
+          if (userData && userData.exp * 1000 > Date.now()) {
+            setUser({
+              id: userData.id,
+              name: userData.name,
+              email: userData.email,
+              role: userData.role,
+            })
+          } else {
+            // Token expired
+            localStorage.removeItem("token")
+          }
+        } catch (tokenError) {
+          console.error("Token parsing error:", tokenError)
           localStorage.removeItem("token")
         }
       } catch (error) {
@@ -68,6 +73,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const login = async (email: string, password: string) => {
     try {
+      console.log("Auth provider: login attempt for", email)
+
       const response = await fetch("/api/auth/login", {
         method: "POST",
         headers: {
@@ -76,28 +83,65 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         body: JSON.stringify({ email, password }),
       })
 
-      const data = await response.json()
+      // Check if response is ok before trying to parse JSON
+      if (!response.ok) {
+        const errorText = await response.text()
+        console.error("Login response error:", response.status, errorText)
+
+        if (response.status === 500) {
+          return {
+            success: false,
+            message: "Server error. Database mungkin belum di-setup atau terjadi masalah koneksi.",
+          }
+        }
+
+        return {
+          success: false,
+          message: `Login gagal dengan status ${response.status}. Silakan coba lagi.`,
+        }
+      }
+
+      // Now parse JSON safely
+      let data
+      try {
+        data = await response.json()
+        console.log("Login response:", data.success ? "success" : "failed")
+      } catch (jsonError) {
+        console.error("JSON parsing error:", jsonError)
+        return {
+          success: false,
+          message: "Gagal memproses respons server. Silakan coba lagi.",
+        }
+      }
 
       if (data.success) {
         localStorage.setItem("token", data.token)
 
-        // Decode token to get user data
-        const userData = JSON.parse(atob(data.token.split(".")[1]))
+        try {
+          // Decode token to get user data
+          const userData = JSON.parse(atob(data.token.split(".")[1]))
 
-        setUser({
-          id: userData.id,
-          name: userData.name,
-          email: userData.email,
-          role: userData.role,
-        })
+          setUser({
+            id: userData.id,
+            name: userData.name,
+            email: userData.email,
+            role: userData.role,
+          })
 
-        return { success: true, message: "Login successful" }
+          return { success: true, message: "Login berhasil" }
+        } catch (tokenError) {
+          console.error("Token parsing error:", tokenError)
+          return { success: false, message: "Token autentikasi tidak valid" }
+        }
       } else {
-        return { success: false, message: data.message || "Login failed" }
+        return { success: false, message: data.message || "Login gagal" }
       }
     } catch (error) {
       console.error("Login error:", error)
-      return { success: false, message: "An error occurred during login" }
+      return {
+        success: false,
+        message: "Terjadi kesalahan saat login. Server mungkin tidak merespons atau database belum di-setup.",
+      }
     }
   }
 

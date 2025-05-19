@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server"
-import { query, transaction } from "@/lib/db"
+import { sql, transaction } from "@/lib/db"
 
 export async function GET(request: Request) {
   try {
@@ -7,7 +7,7 @@ export async function GET(request: Request) {
     const categoryId = searchParams.get("categoryId")
     const search = searchParams.get("search")
 
-    let sql = `
+    let query = `
       SELECT p.*, c.name as category_name
       FROM products p
       LEFT JOIN categories c ON p.category_id = c.id
@@ -17,18 +17,18 @@ export async function GET(request: Request) {
     const params = []
 
     if (categoryId) {
-      sql += " AND p.category_id = ?"
+      query += ` AND p.category_id = $${params.length + 1}`
       params.push(categoryId)
     }
 
     if (search) {
-      sql += " AND (p.name LIKE ? OR p.sku LIKE ?)"
-      params.push(`%${search}%`, `%${search}%`)
+      query += ` AND (p.name ILIKE $${params.length + 1} OR p.sku ILIKE $${params.length + 1})`
+      params.push(`%${search}%`)
     }
 
-    sql += " ORDER BY p.created_at DESC"
+    query += " ORDER BY p.created_at DESC"
 
-    const products = await query(sql, params)
+    const products = await sql(query, params)
 
     return NextResponse.json({
       success: true,
@@ -57,24 +57,23 @@ export async function POST(request: Request) {
     }
 
     // Simpan produk menggunakan transaksi
-    const result = await transaction(async (connection) => {
+    const result = await transaction(async (client) => {
       // Insert produk
-      const [productResult] = await connection.query(
-        `INSERT INTO products (name, sku, category_id, base_price, description, has_variants)
-         VALUES (?, ?, ?, ?, ?, ?)`,
-        [name, sku, categoryId, basePrice, description || "", hasVariants || false],
-      )
+      const productResult = await client`
+        INSERT INTO products (name, sku, category_id, base_price, description, has_variants)
+        VALUES (${name}, ${sku}, ${categoryId}, ${basePrice}, ${description || ""}, ${hasVariants || false})
+        RETURNING id
+      `
 
-      const productId = productResult.insertId
+      const productId = productResult[0].id
 
       // Insert harga marketplace
       if (marketplacePrices && Object.keys(marketplacePrices).length > 0) {
         for (const [marketplaceId, price] of Object.entries(marketplacePrices)) {
-          await connection.query(
-            `INSERT INTO product_prices (product_id, marketplace_id, price)
-             VALUES (?, ?, ?)`,
-            [productId, marketplaceId, price],
-          )
+          await client`
+            INSERT INTO product_prices (product_id, marketplace_id, price)
+            VALUES (${productId}, ${marketplaceId}, ${price})
+          `
         }
       }
 

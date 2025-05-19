@@ -64,7 +64,7 @@ export default function DatabaseSetupPage() {
     <div className="container mx-auto py-10">
       <h1 className="text-3xl font-bold mb-6">Setup Database</h1>
       <p className="text-muted-foreground mb-8">
-        Halaman ini membantu Anda untuk mengatur database MySQL untuk aplikasi Price Management System.
+        Halaman ini membantu Anda untuk mengatur database PostgreSQL untuk aplikasi Price Management System.
       </p>
 
       <div className="grid gap-6 md:grid-cols-2">
@@ -74,12 +74,11 @@ export default function DatabaseSetupPage() {
               <Database className="h-5 w-5" />
               Test Koneksi Database
             </CardTitle>
-            <CardDescription>Periksa apakah aplikasi dapat terhubung ke database MySQL Anda.</CardDescription>
+            <CardDescription>Periksa apakah aplikasi dapat terhubung ke database PostgreSQL Neon Anda.</CardDescription>
           </CardHeader>
           <CardContent>
             <p className="text-sm mb-4">
-              Pastikan Anda telah mengatur environment variable <code>MYSQL_HOST</code>, <code>MYSQL_USER</code>,{" "}
-              <code>MYSQL_PASSWORD</code>, dan <code>MYSQL_DATABASE</code> dengan benar.
+              Pastikan Anda telah mengatur environment variable <code>DATABASE_URL</code> dengan benar.
             </p>
 
             {testResult && (
@@ -103,7 +102,7 @@ export default function DatabaseSetupPage() {
               <Server className="h-5 w-5" />
               Seed Database
             </CardTitle>
-            <CardDescription>Buat tabel dan isi data awal ke database MySQL Anda.</CardDescription>
+            <CardDescription>Buat tabel dan isi data awal ke database PostgreSQL Anda.</CardDescription>
           </CardHeader>
           <CardContent>
             <p className="text-sm mb-4">
